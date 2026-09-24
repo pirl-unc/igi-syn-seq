@@ -145,6 +145,9 @@ elsewhere (Nextflow work dirs do this), stage BAM and index as side-by-side syml
   oriented to agree with SHAPEIT5 at the block's panel sites; otherwise a seeded random orientation. Every
   record gets `INFO/PHASE_SOURCE` in {shapeit5, whatshap_block, random, hom, haploid}; chrX outside the PARs
   and chrY are emitted haploid for a male. One phase set per chromosome results.
+  Outcome for IPISRC044 (2026-09-24): 4.58 M PASS records; hets phased by SHAPEIT5 2,541,146, via WhatsHap
+  blocks 73,017, random 130,424 (4.7 % of hets), homozygous 1,733,596, haploid chrX/chrY 109,641; zero
+  unphased hets; `whatshap stats` reports one block per chromosome (chr1: 100 % phased, 248.9 Mb block).
 - **Germline SVs.** With genomic long reads use sniffles2 (`sniffles --input lr.bam --vcf sv.vcf.gz
   --reference $REF --phase`); IPISRC044 has none, so call from the short-read normal WGS with Manta
   (germline mode) or Delly, accepting lower sensitivity for insertions. **Decision: include**, then annotate for gene overlap and consequence
