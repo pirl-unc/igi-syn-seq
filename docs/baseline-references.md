@@ -122,9 +122,29 @@ elsewhere (Nextflow work dirs do this), stage BAM and index as side-by-side syml
 - **Unphased hets and block boundaries.** WhatsHap yields many blocks per chromosome. For genome
   construction, either (a) statistically phase across blocks with SHAPEIT5 against the 1000 Genomes
   GRCh38 panel and use WhatsHap's read-backed phase as a scaffold, or (b) assign block orientations
-  at random and record the choice in the truth bundle. **Decision: (a), SHAPEIT5 5.1.1**
-  (`phase_common` per chromosome with the 1000 Genomes 30x GRCh38 panel, `--scaffold` set to the
-  WhatsHap-phased VCF so read-backed blocks are kept intact).
+  at random and record the choice in the truth bundle. **Decision: (a), SHAPEIT5 5.1.1** `phase_common`
+  per autosome against the 1000 Genomes 30x GRCh38 panel (3,202 samples, NYGC 2022-04-22 release from
+  the EBI FTP; download the 23 per-chromosome VCFs in parallel, one stream is throttled to ~0.5 MB/s).
+  WhatsHap output is **not** used as `--scaffold`: SHAPEIT5 treats a scaffold as chromosome-wide phase,
+  which many short read-backed blocks are not. Practical requirements found on the first runs:
+  - the target needs `INFO/AC` and `INFO/AN` (DeepVariant writes neither): `bcftools +fill-tags -- -t AC,AN`;
+  - biallelic records only: `bcftools norm -m -any -f $REF | bcftools view -e 'ALT=="*"'`;
+  - genetic maps in SHAPEIT format (`pos chr cM`): the `shapeit5` GitHub repository was unreachable
+    ("repository access blocked"), the identical b38 maps ship in the `shapeit4` repository as
+    `maps/genetic_maps.b38.tar.gz`; an HTML page saved as `chrN.b38.gmap.gz` makes SHAPEIT5 segfault
+    after `GMAP parsing [n=0]`, so check the file type;
+  - convert each panel chromosome to BCF once (`bcftools view -Ob` + index) for speed.
+  ```bash
+  bcftools view -f PASS -r $CHR calls.vcf.gz | bcftools norm -m -any -f $REF | bcftools view -e 'ALT=="*"' \
+    | bcftools +fill-tags -Ob -o target.$CHR.bcf -- -t AC,AN && bcftools index target.$CHR.bcf
+  SHAPEIT5_phase_common --input target.$CHR.bcf --reference 1kGP.$CHR.bcf --map $CHR.b38.gmap.gz \
+    --region $CHR --thread 8 --output target.$CHR.shapeit5.bcf
+  ```
+  SHAPEIT5 emits only target sites present in the panel (chr22: 54,906 of 65,778, i.e. 83 %). The rest are
+  placed by a combination step: for each remaining heterozygous site, use the WhatsHap block it belongs to,
+  oriented to agree with SHAPEIT5 at the block's panel sites; otherwise a seeded random orientation. Every
+  record gets `INFO/PHASE_SOURCE` in {shapeit5, whatshap_block, random, hom, haploid}; chrX outside the PARs
+  and chrY are emitted haploid for a male. One phase set per chromosome results.
 - **Germline SVs.** With genomic long reads use sniffles2 (`sniffles --input lr.bam --vcf sv.vcf.gz
   --reference $REF --phase`); IPISRC044 has none, so call from the short-read normal WGS with Manta
   (germline mode) or Delly, accepting lower sensitivity for insertions. **Decision: include**, then annotate for gene overlap and consequence
