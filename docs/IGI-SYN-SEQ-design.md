@@ -11,7 +11,7 @@ Decisions marked **[default]** were delegated and can be overridden before gener
 | 2026-09-24 | Tumor expression baseline: TCGA-BRCA basal-like samples (PanCanAtlas `Subtype_mRNA = Basal`, 193 samples, 191 present in the UCSC Xena Toil kallisto transcript-TPM table) rather than a new salmon run. |
 | 2026-09-24 | ERV tumor-specific vs tumor-associated labels use the pan-normal reference shipped with lens-v2.0.0-dev-alt (`pan_normal_and_mtec_exp.95th_perc.homo_sapiens.quant.sf` and `erv_pep_exp_norm_and_mtec.homo_sapiens.tsv`) for now. |
 | 2026-09-24 | IGI-SYN-SEQ-02 phasing: WhatsHap read-backed blocks scaffolded by SHAPEIT5 statistical phasing (1000 Genomes GRCh38 panel). |
-| 2026-09-24 | Germline SVs are part of both baselines: Q100 `stvar` calls >= 50 bp for HG002 (~46,500, TRF-annotated by GIAB), sniffles2 on the ONT BAM for IPISRC044; both annotated for gene overlap and predicted consequence. |
+| 2026-09-24 | Germline SVs are part of both baselines: Q100 `stvar` calls >= 50 bp for HG002 (~46,500, TRF-annotated by GIAB); for IPISRC044 a short-read caller on the normal WGS (Manta proposed, pending), since the IPISRC044 "ONT" data turned out to be single-cell cDNA, not genomic; both annotated for gene overlap and predicted consequence. |
 
 ## 1. Goals
 
@@ -85,9 +85,12 @@ Storage estimate (full, both datasets): ~700 GB, dominated by four 30x HiFi BAMs
   Manifest `Alleles` (class I, two-field): HLA-A*01:01,HLA-A*26:01,HLA-B*35:08,HLA-B*38:01,HLA-C*04:01,HLA-C*12:03.
   The HLA LOH event in section 5.1 removes the paternal haplotype (A*26:01/B*38:01/C*12:03).
 - **IGI-SYN-SEQ-02 / IPISRC044**: LENS's germline VCFs are exome-restricted, so a genome-wide set is
-  built here: DeepVariant (WGS model) on the blood-normal Illumina WGS, WhatsHap read-backed phasing
-  with tumor ONT reads, then SHAPEIT5 (1000G GRCh38 panel) to phase across WhatsHap blocks. Germline
-  SVs from sniffles2 on the ONT BAM, annotated for gene overlap. Procedure: `baseline-references.md`. HLA from manifest: A*01:01 hom, B*08:01/B*27:05, C*01:02/C*07:01.
+  built here: DeepVariant (WGS model) on the blood-normal Illumina WGS, then SHAPEIT5 statistical phasing
+  (1000G GRCh38 panel) scaffolded by WhatsHap read-backed blocks. IPISRC044 has **no long-read DNA**: the
+  "ONT" files are ONT sequencing of the T1 10x 5' single-cell cDNA library (polyA, 10x adapters, median
+  read 291 bp), so read-backed phasing comes from short reads only and SHAPEIT5 carries the genome-wide
+  phase. Germline SVs must come from a short-read caller on the normal WGS (Manta proposed), annotated
+  for gene overlap. Procedure: `baseline-references.md`. HLA from manifest: A*01:01 hom, B*08:01/B*27:05, C*01:02/C*07:01.
 - A pathogenic **BRCA1** germline frameshift is added to both baselines (TNBC/HRD
   realism; wild-type allele lost somatically, section 5).
 - Germline variants are also deliberately placed in a subset of CTA and ERV ORFs

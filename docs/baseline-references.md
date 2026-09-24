@@ -63,15 +63,17 @@ PacBio's own Kinnex HG002 releases (single-cell 10x 5' and full-length bulk RNA)
 ## IGI-SYN-SEQ-02: IPISRC044 (public sarcoma case, male)
 
 Only exome-restricted, short-read-phased germline calls exist in the LENS outputs (156k records,
-phase-block N50 138 bp), so a genome-wide call set is built from the blood-normal Illumina WGS and
-phased with tumor ONT reads.
+phase-block N50 138 bp), so a genome-wide call set is built from the blood-normal Illumina WGS.
+**There is no long-read DNA for IPISRC044.** The files under `assays/ONT/` are ONT reads of the 10x 5'
+single-cell cDNA libraries (median 291 bp, polyA and 10x adapters, exon depth in the 10^5 range vs ~7x
+intergenic). They add read-backed phase only inside expressed genes; genome-wide phase therefore comes
+from SHAPEIT5 statistical phasing, with WhatsHap short-read blocks as a scaffold.
 
 ### 1. Inputs
 - `$NORMAL_BAM`: blood-normal Illumina WGS, bwa-mem aligned and sorted against `$REF` (the LENS
   alignment is reused; any equivalent alignment works). Index required.
-- `$LR_FASTQ/`: ONT PromethION FASTQs from tumor T1 (`fastq_pass`). About a third of the run
-  (32 of 97 files) gives roughly 20x, enough for phasing. Tumor reads are fine for phasing germline
-  heterozygous sites; they simply add nothing in tumor LOH regions.
+- `$LR_FASTQ/` (optional): long-read **DNA** if available. For IPISRC044 there is none; the ONT cDNA reads
+  were aligned once (32 of 97 files, 19x nominal but concentrated in exons) and contribute little.
 
 ### 2. Genome-wide small-variant calling
 ```bash
@@ -82,7 +84,7 @@ run_deepvariant --model_type WGS --ref $REF --reads $NORMAL_BAM \
 No `--regions`: the LENS run used the WES model restricted to the exome BED, which is what made it
 unusable here. Expect roughly 4-5 M records for a 30x genome. Wall time is several hours at 64 CPUs.
 
-### 3. Long-read alignment (for phasing only; no ONT data is simulated)
+### 3. Long-read alignment (optional; only useful with genomic long reads; no ONT data is simulated)
 ```bash
 ls $LR_FASTQ/*.fastq.gz | sort -V | head -n 32 > files.txt
 cat $(cat files.txt) \
@@ -111,8 +113,9 @@ WhatsHap requires each BAM's index to sit next to the BAM as `<name>.bam.bai`; i
 elsewhere (Nextflow work dirs do this), stage BAM and index as side-by-side symlinks first.
 
 ### 5. Acceptance criteria
-- Phased fraction of heterozygous PASS sites >= 90 % on autosomes.
-- Phase-block N50 in the hundreds of kb or better (short-read-only baseline: 138 bp).
+- After SHAPEIT5: every heterozygous PASS site phased, one phase set per chromosome.
+- Read-backed WhatsHap stage alone (short reads): expect ~60 % of hets phased in blocks of a few hundred bp
+  (observed chr8: 62 %, median block 126 bp, longest 36 kb); this is the scaffold, not the product.
 - chrX (male) has essentially no heterozygous calls outside the PARs; chrY none.
 
 ### 6. Additional steps (decided 2026-09-24)
@@ -122,8 +125,9 @@ elsewhere (Nextflow work dirs do this), stage BAM and index as side-by-side syml
   at random and record the choice in the truth bundle. **Decision: (a), SHAPEIT5 5.1.1**
   (`phase_common` per chromosome with the 1000 Genomes 30x GRCh38 panel, `--scaffold` set to the
   WhatsHap-phased VCF so read-backed blocks are kept intact).
-- **Germline SVs.** Call with sniffles2 on the ONT BAM (`sniffles --input ont.bam --vcf sv.vcf.gz
-  --reference $REF --phase`). **Decision: include**, then annotate for gene overlap and consequence
+- **Germline SVs.** With genomic long reads use sniffles2 (`sniffles --input lr.bam --vcf sv.vcf.gz
+  --reference $REF --phase`); IPISRC044 has none, so call from the short-read normal WGS with Manta
+  (germline mode) or Delly, accepting lower sensitivity for insertions. **Decision: include**, then annotate for gene overlap and consequence
   (e.g. SnpEff or AnnotSV) so the truth bundle documents each germline SV. For HG002 the Q100 `stvar`
   VCF already carries GIAB's tandem-repeat annotations; keep records >= 50 bp (~46,500 of 6.27 M).
 - **HLA alleles.** From the manifest: A*01:01 homozygous, B*08:01/B*27:05, C*01:02/C*07:01.
