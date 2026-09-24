@@ -149,10 +149,23 @@ elsewhere (Nextflow work dirs do this), stage BAM and index as side-by-side syml
   blocks 73,017, random 130,424 (4.7 % of hets), homozygous 1,733,596, haploid chrX/chrY 109,641; zero
   unphased hets; `whatshap stats` reports one block per chromosome (chr1: 100 % phased, 248.9 Mb block).
 - **Germline SVs.** With genomic long reads use sniffles2 (`sniffles --input lr.bam --vcf sv.vcf.gz
-  --reference $REF --phase`); IPISRC044 has none, so call from the short-read normal WGS with Manta
-  (germline mode) or Delly, accepting lower sensitivity for insertions. **Decision: include**, then annotate for gene overlap and consequence
-  (e.g. SnpEff or AnnotSV) so the truth bundle documents each germline SV. For HG002 the Q100 `stvar`
-  VCF already carries GIAB's tandem-repeat annotations; keep records >= 50 bp (~46,500 of 6.27 M).
+  --reference $REF --phase`). IPISRC044 has none, so SVs come from Manta 1.6.0 in germline mode on the
+  short-read normal WGS, restricted to the primary chromosomes (lower insertion sensitivity accepted).
+  **Decision: include**, then annotate with SnpEff (GENCODE v37 database) so the truth bundle documents
+  each germline SV.
+  ```bash
+  awk -v OFS='\t' '$1 ~ /^chr([0-9]+|X|Y)$/ {print $1,0,$2}' $REF.fai | bgzip > primary.bed.gz && tabix -p bed primary.bed.gz
+  configManta.py --bam $NORMAL_BAM --referenceFasta $REF --callRegions primary.bed.gz --runDir manta
+  manta/runWorkflow.py -m local -j $N -g 60            # results/variants/diploidSV.vcf.gz
+  bcftools view -f PASS diploidSV.vcf.gz | snpEff -dataDir $SNPEFF_DATA GRCh38.GENCODEv37 - | bgzip > germline_sv.snpeff.vcf.gz
+  ```
+  Manta needs the BAM index beside the BAM (stage symlinks as for WhatsHap). It ran the whole genome in a
+  single candidate-generation bin despite 32 CPUs, so wall time was 3 h 08 min on one thread.
+  Outcome for IPISRC044: 8,756 PASS SVs (4,510 DEL, 2,299 INS, 1,384 BND, 563 DUP); SnpEff finds 201
+  gene-fusion-plus-frameshift and 80 gene-fusion consequences among them. Files: `germline_wgs/manta/`.
+  For HG002 the Q100 `stvar` file contains all 6.27 M variants; keep the 46,504 records with
+  `abs(strlen(ALT)-strlen(REF)) >= 50` (GIAB tandem-repeat annotations retained) and annotate the same
+  way: 46 % intergenic, 25 % intronic, 77 transcript ablations, 60 exon losses. Files: `inputs/vcfs/HG002/germline/`.
 - **HLA alleles.** From the manifest: A*01:01 homozygous, B*08:01/B*27:05, C*01:02/C*07:01.
 
 ---
