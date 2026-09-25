@@ -1,0 +1,15 @@
+# Site paths for the catalog designer (copy to a local, untracked file and edit).
+reference_fasta: /path/to/Homo_sapiens.assembly38.fa
+gtf: /path/to/gencode.v37.annotation.gtf.gz
+annotation_cache: /scratch/igi/gencode.v37.tx.json.gz
+exome_bed: /path/to/hg38_exome.bed
+rmsk_bed: /path/to/hg38.rmsk.bed.gz
+segdups_bed: /path/to/hg38.segdups.bed
+arms_bed: /path/to/hg38.arms.bed
+expression_tsv: catalog/resources/tcga_brca_basal.transcript_tpm.tsv.gz
+germline_vcf:
+  HG002: /path/to/HG002.Q100v1.1.germline_smvar.vcf.gz
+  IPISRC044: /path/to/IPISRC044.germline.phased.final.vcf.gz
+netmhcpan_cmd: "singularity exec -B /data /path/netmhcpan-4.1b.img /netMHCpan-4.1/Linux_x86_64/bin/netMHCpan -BA -a {alleles} -f {fasta}"
+workdir: /scratch/igi/catalog_work
+netmhcpan_threads: 24

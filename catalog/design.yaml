@@ -1,0 +1,123 @@
+# IGI-SYN-SEQ catalog design (path-free). Site paths live in a separate paths.yaml.
+version: 0.1
+seed: 20260925
+
+tiers:
+  expression: [T0, T1, T10, T100, T1000]          # gene TPM <0.5, ~1, ~10, ~100, >=300
+  binding: [strong, weak, non]                    # netMHCpan %rank_EL <=0.5, <=2, >2 (best across patient alleles)
+  clonality: [T_LOH, T_amp, T_het, A, B, A1]      # truncal in LOH region, truncal in focal amp, truncal het, subclones
+  context: [clean, homopolymer, segdup, near_germline_het, phased_pair, exon_edge, deep_intronic]
+  allelic_expression: {balanced: 0.5, silenced: 0.1, dominant: 0.9}
+
+counts:                      # designed events per dataset
+  snv_missense_grid_replicates: 4      # per (clonality x expression x binding) cell, clean context -> 6*5*3*4 = 360
+  snv_missense_context: {homopolymer: 25, segdup: 25, near_germline_het: 25, phased_pair: 25, exon_edge: 25, deep_intronic: 25}
+  snv_nonsense: 60
+  snv_synonymous: 40
+  snv_start_stop_loss: 20
+  indel_frameshift_del: 80
+  indel_frameshift_ins: 60
+  indel_inframe_del: 40
+  indel_inframe_ins: 30
+  indel_homopolymer: 40
+  fusions: 20
+  svs: 100
+  ctas: 15
+  ervs: 30
+  splice: 30
+  negatives: {germline_lookalike: 30, rna_editing: 30, pseudogene: 20, cta_erv_germline: 10, unexpressed_somatic: 20}
+  chr1to6_min_fraction: 0.5           # at least this fraction of every class/tier lands on chr1-6
+  flagposts: 40
+
+hotspots:                    # flagpost SNVs (gene, protein change); positions resolved from the annotation
+  - [TP53, R248Q]
+  - [TP53, R273H]
+  - [PIK3CA, H1047R]
+  - [PIK3CA, E545K]
+  - [KRAS, G12D]
+  - [BRAF, V600E]
+  - [IDH1, R132H]
+  - [NRAS, Q61R]
+  - [EGFR, L858R]
+  - [CTNNB1, S45F]
+  - [AKT1, E17K]
+  - [ESR1, Y537S]
+
+datasets:
+  IGI-SYN-SEQ-01:
+    baseline: HG002
+    sex: male
+    hla: [HLA-A*01:01, HLA-A*26:01, HLA-B*35:08, HLA-B*38:01, HLA-C*04:01, HLA-C*12:03]
+    hla_haplotypes: {0: [HLA-A*01:01, HLA-B*35:08, HLA-C*04:01], 1: [HLA-A*26:01, HLA-B*38:01, HLA-C*12:03]}  # hap0 maternal, hap1 paternal
+    purity: 0.70
+    wgd: false
+    clones:                  # ccf = fraction of tumor cells carrying the clone's events; parent null = truncal
+      T:  {parent: null, ccf: 1.00}
+      A:  {parent: T,    ccf: 0.40}
+      A1: {parent: A,    ccf: 0.12}
+      B:  {parent: T,    ccf: 0.25}
+    drivers:                 # placed first, then excluded from the random pools
+      T:  [[TP53, R248Q, snv], [RB1, frameshift, indel], [BRCA1, germline_wt_loss, note]]
+      A:  [[PIK3CA, H1047R, snv]]
+      A1: [[NF1, frameshift, indel]]
+      B:  [[KMT2C, nonsense, snv]]
+    cna:                     # copy number per haplotype after the event; regions are arms (chr:p/q) or coordinates; inherited by descendants
+      T:
+        - {region: "chr17:p",             cn: [1, 0], label: TP53_17p_LOH}
+        - {region: "chr13:q",             cn: [0, 1], label: RB1_13q_LOH}
+        - {region: "chr17:q",             cn: [1, 0], label: BRCA1_wt_loss_17q}
+        - {region: "chr10:87700000-88100000", cn: [0, 0], label: PTEN_homdel}
+        - {region: "chr8:126500000-128500000", cn: [1, 11], label: MYC_amp}
+        - {region: "chr1:q",              cn: [2, 1], label: 1q_gain}
+        - {region: "chr5:q",              cn: [1, 0], label: 5q_loss}
+        - {region: "chr8:p",              cn: [0, 1], label: 8p_loss}
+        - {region: "chr16:q",             cn: [1, 0], label: 16q_loss}
+        - {region: "chr6:28500000-33500000", cn: [1, 0], label: HLA_LOH_loses_hap1}
+      A:
+        - {region: "chr7:55000000-55300000", cn: [1, 7], label: EGFR_amp}
+    chromothripsis: {region: "chr5:p", breakpoints: 60}
+    hrd_tandem_dups: 100
+    signatures: {SBS3: 0.60, SBS1: 0.15, SBS5: 0.15, SBS13: 0.10}
+    background_mut_per_mb: 1.0
+    viruses:
+      - {name: HPV16, accession: NC_001526.2, mode: integrated, site: "chr8:127400000", clone: T, expressed: true, copies: 3}
+      - {name: EBV,   accession: NC_007605.1, mode: episomal, clone: T, expressed: low, copies: 5, normal_trace_copies: 0.05}
+      - {name: HPV18, accession: NC_001357.1, mode: episomal, clone: B, expressed: false, copies: 2}
+  IGI-SYN-SEQ-02:
+    baseline: IPISRC044
+    sex: male
+    hla: [HLA-A*01:01, HLA-A*01:01, HLA-B*08:01, HLA-B*27:05, HLA-C*01:02, HLA-C*07:01]
+    hla_haplotypes: {0: [HLA-A*01:01, HLA-B*08:01, HLA-C*07:01], 1: [HLA-A*01:01, HLA-B*27:05, HLA-C*01:02]}  # assignment to be confirmed from phased VCF
+    purity: 0.45
+    wgd: true
+    clones:
+      T:  {parent: null, ccf: 1.00}
+      A:  {parent: T,    ccf: 0.35}
+      A1: {parent: A,    ccf: 0.10}
+      B:  {parent: T,    ccf: 0.30}
+    drivers:
+      T:  [[TP53, frameshift, indel], [PTEN, nonsense, snv], [PIK3CA, E545K, snv], [BRCA1, germline_wt_loss, note]]
+      A:  [[EGFR, amp, cna]]
+      A1: [[ARID1A, frameshift, indel]]
+      B:  [[NF1, nonsense, snv]]
+    cna:                      # post-WGD baseline is [2,2]; pre-WGD losses are [2,0]/[0,2]
+      T:
+        - {region: "chr17:p",             cn: [2, 0], label: TP53_17p_LOH_preWGD}
+        - {region: "chr13:48300000-48600000", cn: [0, 0], label: RB1_homdel}
+        - {region: "chr10:q",             cn: [2, 0], label: PTEN_10q_LOH}
+        - {region: "chr17:q",             cn: [2, 0], label: BRCA1_wt_loss_17q}
+        - {region: "chr8:126500000-128500000", cn: [2, 18], label: MYC_amp}
+        - {region: "chr1:q",              cn: [3, 2], label: 1q_gain}
+        - {region: "chr5:q",              cn: [2, 1], label: 5q_loss}
+        - {region: "chr8:p",              cn: [1, 2], label: 8p_loss}
+        - {region: "chr6:28500000-33500000", cn: [2, 0], label: HLA_LOH_loses_hap1}
+      A:
+        - {region: "chr7:55000000-55300000", cn: [2, 8], label: EGFR_amp}
+    chromothripsis: {region: "chr3:p", breakpoints: 60}
+    hrd_tandem_dups: 60
+    signatures: {SBS2: 0.25, SBS13: 0.25, SBS3: 0.20, SBS1: 0.15, SBS5: 0.15}
+    background_mut_per_mb: 4.0
+    viruses:
+      - {name: HPV16, accession: NC_001526.2, mode: integrated, site: "chr8:127400000", clone: T, expressed: true, copies: 3}
+      - {name: EBV,   accession: NC_007605.1, mode: episomal, clone: T, expressed: low, copies: 5, normal_trace_copies: 0.05}
+      - {name: HPV18, accession: NC_001357.1, mode: episomal, clone: B, expressed: false, copies: 2}
